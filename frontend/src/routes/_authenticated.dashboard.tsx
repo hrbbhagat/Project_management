@@ -47,13 +47,14 @@ function Dashboard() {
   const s = (stats.data ?? {}) as Record<string, unknown>;
   const allTasks = tasks.data?.data ?? [];
   const allProjects = projects.data?.data ?? [];
-  const num = (k: string) => Number(s[k] ?? 0);
+  const num = (camelKey: string, snakeKey?: string) =>
+    Number(s[camelKey] ?? (snakeKey ? s[snakeKey] : undefined) ?? 0);
   const cards = [
-    { label: "Total Projects", value: num("total_projects"), icon: FolderKanban, tone: "bg-accent text-accent-foreground" },
-    { label: "Total Tasks", value: num("total_tasks"), icon: ListChecks, tone: "bg-info-soft text-info" },
-    { label: "Completed Tasks", value: num("completed_tasks"), icon: CheckCircle2, tone: "bg-success-soft text-success" },
-    { label: "Pending Tasks", value: num("pending_tasks"), icon: Clock, tone: "bg-warning-soft text-warning" },
-    { label: "Projects In Progress", value: num("projects_in_progress"), icon: Loader, tone: "bg-accent text-primary" },
+    { label: "Total Projects", value: num("totalProjects", "total_projects"), icon: FolderKanban, tone: "bg-accent text-accent-foreground" },
+    { label: "Total Tasks", value: num("totalTasks", "total_tasks"), icon: ListChecks, tone: "bg-info-soft text-info" },
+    { label: "Completed Tasks", value: num("completedTasks", "completed_tasks"), icon: CheckCircle2, tone: "bg-success-soft text-success" },
+    { label: "Pending Tasks", value: num("pendingTasks", "pending_tasks"), icon: Clock, tone: "bg-warning-soft text-warning" },
+    { label: "Projects In Progress", value: num("projectsInProgress", "projects_in_progress"), icon: Loader, tone: "bg-accent text-primary" },
   ];
 
   const dist = TASK_STATUSES.map((st) => ({ st, n: allTasks.filter((t) => t.status === st).length }));

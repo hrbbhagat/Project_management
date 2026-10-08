@@ -1,5 +1,5 @@
 import { request, unwrap } from "./api";
-import type { Project, Task, User } from "@/types";
+import type { DashboardStats, Project, Task, User } from "@/types";
 import type { PaginatedResponse, PaginationMeta, ProjectFilters, TaskFilters } from "./types";
 
 export type { PaginatedResponse, PaginationMeta, ProjectFilters, TaskFilters };
@@ -80,7 +80,8 @@ export const taskApi = {
 };
 
 export const dashboardApi = {
-  get: async () => unwrap<Record<string, unknown>>(await request("/api/dashboard"), "dashboard", "stats"),
+  get: async (): Promise<DashboardStats> =>
+    unwrap<DashboardStats>(await request("/api/dashboard"), "dashboard", "stats"),
 };
 
 // Export real services directly

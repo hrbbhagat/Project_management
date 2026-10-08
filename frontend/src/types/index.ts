@@ -38,3 +38,12 @@ export interface Task {
   project_name?: string;
   [key: string]: unknown;
 }
+
+export interface DashboardStats {
+  totalProjects: number;
+  totalTasks: number;
+  completedTasks: number;
+  pendingTasks: number;
+  projectsInProgress: number;
+  [key: string]: unknown;
+}
