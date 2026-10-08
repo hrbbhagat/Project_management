@@ -9,25 +9,20 @@ import { Platform } from 'react-native';
  * - You can override this at any time by setting EXPO_PUBLIC_API_URL in .env
  */
 
-const getDevApiBaseUrl = (): string => {
+const getApiBaseUrl = (): string => {
   // If explicitly provided in environment, use it directly
   if (process.env.EXPO_PUBLIC_API_URL) {
     return process.env.EXPO_PUBLIC_API_URL;
   }
 
-  // Android emulator needs 10.0.2.2 to talk to host machine
-  if (Platform.OS === 'android') {
-    return 'http://10.0.2.2:5001/api';
-  }
-
-  // iOS Simulator / Web / Default
-  return 'http://localhost:5001/api';
+  // Deployed production Render backend
+  return 'https://project-management-backend-7atu.onrender.com/api';
 };
 
 export const Config = {
   APP_NAME: 'Taskline Mobile',
   VERSION: '1.0.0',
-  API_BASE_URL: getDevApiBaseUrl(),
+  API_BASE_URL: getApiBaseUrl(),
   STORAGE_KEYS: {
     AUTH_TOKEN: 'taskline_auth_token',
     USER_DATA: 'taskline_user_data',
