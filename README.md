@@ -1,205 +1,188 @@
-# Taskline — Cross-Platform Project Management System (Web + Mobile)
+# Project Management System
 
-A production-grade, multi-tenant project management workspace featuring a **React Web Application** and a **React Native / Expo Mobile Application** powered by a single **Node.js + Express REST API** and a unified **PostgreSQL Database**.
+A production-grade, multi-tenant full-stack project and task management system engineered with a **React Web Application** and a **React Native / Expo Mobile Application**, powered by a unified **Node.js + Express REST API** and a single **PostgreSQL Database**.
+
+Both the Web and Mobile client applications communicate with the **SAME backend REST API** and the **SAME PostgreSQL database**, ensuring real-time cross-platform state synchronization and data integrity.
 
 ---
 
 ## 1. System Architecture
 
-Both the Web and Mobile applications communicate with the **SAME backend REST API** and the **SAME PostgreSQL database**. There is no separate backend or mock service for the mobile application.
-
 ```mermaid
 flowchart TB
-    subgraph Clients["Client Applications"]
-        WEB["React Web Frontend\n(React 19 + Vite + TanStack)\nPort: 8080"]
-        MOBILE["Mobile App (Android / iOS)\n(React Native + Expo SDK 57)\nPort: 8081"]
+    subgraph Database["Neon PostgreSQL Database (Production)"]
+        POSTGRES[("Neon PostgreSQL Database\n(Serverless DB via DATABASE_URL)\nSSL Encrypted Connection Pool")]
     end
 
-    subgraph BackendAPI["Centralized REST API"]
-        EXPRESS["Node.js + Express REST API\n(JWT, Rate Limiting, Helmet, Swagger)\nPort: 5001\nRoute Prefix: /api/*"]
+    subgraph Backend["Render Web Service (Production)"]
+        API["Node.js + Express REST API\n(JWT Auth, Rate Limiting, Helmet, Swagger OpenAPI)\nRoute Prefix: /api/*"]
     end
 
-    subgraph Database["Relational Storage"]
-        POSTGRES[("PostgreSQL Database\n(project_management)\nPort: 5432")]
+    subgraph Clients["Unified Client Applications"]
+        WEB["React Web Application\n(React 19 + TanStack Start / Vite)\nDeployed on Vercel"]
+        MOBILE["Mobile Application (Android / iOS)\n(React Native + Expo SDK 57)\nStandalone APK / Expo Go"]
     end
 
-    WEB -->|"HTTP / REST\n(Authorization: Bearer JWT)"| EXPRESS
-    MOBILE -->|"HTTP / REST\n(Authorization: Bearer JWT)"| EXPRESS
-    EXPRESS -->|"Parameterized SQL\n(pg connection pool)"| POSTGRES
+    WEB -->|"HTTPS REST API / Bearer JWT"| API
+    MOBILE -->|"HTTPS REST API / Bearer JWT"| API
+    API -->|"Parameterized SQL Queries (node-postgres)"| POSTGRES
 ```
 
-### Key Architectural Tenets
-1. **Single Source of Truth:** All project, task, and user entities live in PostgreSQL; business logic is executed strictly on the Express backend.
-2. **Zero Direct Database Access from Clients:** Neither Web nor Mobile connects directly to PostgreSQL.
-3. **Stateless JWT Authentication:** Authentication is handled with cryptographic JSON Web Tokens (Bearer scheme) issued upon verification of bcrypt-hashed passwords.
-4. **Multi-Tenant Ownership & Isolation (BOLA Protected):** Database queries are strictly scoped to the authenticated user ID (`owner_id = $1 OR pm.user_id = $1`), preventing cross-tenant data leaks.
+### Architectural Highlights
+- **Single Source of Truth:** All project, task, user, and membership records reside in a single PostgreSQL database; business logic and validations are enforced exclusively on the Express backend.
+- **Zero Direct Client-to-Database Connections:** Neither the Web nor Mobile client connects directly to PostgreSQL. All operations pass through the authenticated REST API.
+- **Stateless JWT Authentication:** Authentication utilizes JSON Web Tokens (Bearer scheme) with 7-day expiration. Passwords are cryptographically hashed using bcrypt (10 rounds).
+- **Multi-Tenant Authorization & BOLA Protection:** Database queries enforce strict tenant scoping (`owner_id = $1 OR pm.user_id = $1`), preventing cross-tenant Broken Object Level Authorization exploits.
 
 ---
 
-## 2. Technology Stack
+## 2. Production Deployment & Live Links
 
-### Backend API (`backend/`)
-- **Runtime & Framework:** Node.js (v20+) & Express (v5.2)
-- **Database Driver:** `pg` (node-postgres connection pool)
-- **Authentication:** `jsonwebtoken` (JWT) & `bcrypt` (10 salt rounds)
-- **Security & Reliability:** `helmet` (HTTP headers), `cors` (origin validation), `express-rate-limit` (brute-force protection on auth routes)
-- **API Documentation:** `swagger-ui-express` & `swagger-jsdoc` (OpenAPI 3.0 specification)
-- **Dev Tooling:** `nodemon`, `dotenv`
+| Component | Platform | Live URL / Specification |
+|:---|:---|:---|
+| **Web Application** | Vercel | [https://project-management-jfyd.vercel.app](https://project-management-jfyd.vercel.app) |
+| **Backend API** | Render | [https://project-management-backend-7atu.onrender.com](https://project-management-backend-7atu.onrender.com) |
+| **API Documentation** | Swagger UI | [https://project-management-backend-7atu.onrender.com/api/docs](https://project-management-backend-7atu.onrender.com/api/docs) |
+| **API Health Check** | Render | [https://project-management-backend-7atu.onrender.com/api/health](https://project-management-backend-7atu.onrender.com/api/health) |
+| **Database** | Neon | Neon Serverless PostgreSQL (Multi-AZ, SSL enabled) |
+
+---
+
+## 3. Technology Stack
+
+### Backend REST API (`backend/`)
+- **Runtime:** Node.js (v20+)
+- **Framework:** Express.js (v5.2.1)
+- **Database Driver:** `pg` (node-postgres v8.23.1 connection pool with Neon SSL support)
+- **Authentication:** `jsonwebtoken` (v9.0.3) & `bcrypt` (v6.0.0)
+- **Security Middleware:** `helmet` (v8.3.0), `cors` (v2.8.6), `express-rate-limit` (v8.7.1)
+- **API Documentation:** `swagger-ui-express` (v5.0.1) & `swagger-jsdoc` (v6.3.0) (OpenAPI 3.0)
+- **Environment Management:** `dotenv` (v18.0.5)
 
 ### Web Frontend (`frontend/`)
-- **Framework & Language:** React 19, TypeScript (Strict mode)
-- **Build Tooling & Routing:** Vite 8, TanStack Router, TanStack Start (SSR / Nitro engine)
-- **Server State & Caching:** `@tanstack/react-query` (v5)
-- **Styling & UI System:** Tailwind CSS (v4), Radix UI Primitives, Lucide React Icons
-- **Notifications:** `sonner` toast notification system
+- **Core:** React 19 (`19.2.0`), TypeScript (`5.8.3`)
+- **Build Engine & Routing:** Vite (`8.1.5`), TanStack Router (`1.170.41`), TanStack Start (`1.168.60` Nitro SSR)
+- **Server State Management:** `@tanstack/react-query` (`5.101.1`)
+- **Styling & Design System:** Tailwind CSS (`4.2.1`), Radix UI Primitives, Lucide React Icons (`0.575.0`)
+- **Notifications:** `sonner` (`2.0.7`)
 
 ### Mobile Application (`mobile/`)
-- **Framework & SDK:** React Native (0.86) + Expo (SDK 57)
-- **Language:** TypeScript (Strict mode)
-- **Navigation:** React Navigation (NativeStack + Bottom Tabs)
-- **Secure Token Storage:** `expo-secure-store` (Hardware Keystore on Android / Keychain on iOS)
-- **State Management:** React Context API (`AuthContext`)
-- **Network Layer:** Centralized `ApiClient` with 15-second AbortController timeout protection and global 401 session expiration interceptor
-- **Iconography:** `@expo/vector-icons` (Ionicons)
+- **Framework:** React Native (`0.86.3`) + Expo (`SDK 57.0.27`)
+- **Language:** TypeScript (`6.0.3`)
+- **Navigation:** `@react-navigation/native` (`7.5.0`), NativeStack (`7.20.0`), Bottom Tabs (`7.20.0`)
+- **Secure Storage:** `expo-secure-store` (`57.0.4` — Hardware Keystore on Android / Keychain on iOS)
+- **State & Networking:** React Context API (`AuthContext`), Centralized API client with timeout protection and automatic 401 session expiration interceptor
+- **Icons & UI:** `@expo/vector-icons` (Ionicons `15.0.2`), `react-native-safe-area-context`
 
-### Database (`database/`)
-- **Engine:** PostgreSQL 14+
-- **Schema Design:** 6 relational tables (`users`, `projects`, `project_members`, `tasks`, `comments`, `audit_logs`)
-- **Domain Enums:** `user_system_role`, `project_status`, `project_role`, `task_status`, `task_priority`
+### Relational Database (`database/`)
+- **Database Engine:** PostgreSQL 14+ (Local) / Neon PostgreSQL (Production)
+- **Schema Design:** 6 Relational Tables (`users`, `projects`, `project_members`, `tasks`, `comments`, `audit_logs`)
+- **Custom Enums:** `user_system_role`, `project_status`, `project_role`, `task_status`, `task_priority`
 
 ---
 
-## 3. Key Features
+## 4. Key Application Features
 
-### 🔐 Authentication & Session Security
-- **Registration:** Validates full name, email format (RFC 5322 regex), and password complexity ($\ge 8$ chars). Hashes passwords with bcrypt.
-- **Login:** Issues signed JWT tokens with 7-day expiration.
-- **Hardware-Backed Storage on Mobile:** JWT tokens are persisted in device Keystore/Keychain via `expo-secure-store`.
-- **Session Auto-Restoration:** Verifies existing tokens via `GET /api/auth/me` upon application startup.
-- **Automatic Session Expiration (401 Interceptor):** Expired or invalidated tokens automatically purge storage, update auth state, and transition the user to the Login screen with a notification.
-- **Cross-Platform Single Sign-On:** Accounts registered on Mobile log into Web; accounts registered on Web log into Mobile.
+### 🔐 Authentication & Security
+- **User Registration:** Validates full name, email format (RFC 5322 regex), and password complexity ($\ge 8$ characters). Passwords hashed with bcrypt.
+- **User Login:** Issues signed JWT with 7-day expiration.
+- **Hardware-Backed Mobile Token Storage:** Persistent storage in Android Keystore / iOS Keychain via `expo-secure-store`.
+- **Session Auto-Restoration:** Automatically validates session via `GET /api/auth/me` on startup.
+- **Automatic 401 Expiration Interceptor:** Invalidated or expired tokens automatically log out and transition user to login screen across Web and Mobile.
+- **Cross-Platform Single Sign-On:** Accounts registered on Web log in seamlessly on Mobile, and vice versa.
 
 ### 📁 Project Management (Full CRUD)
-- **Create Project:** Modal dialogs with field validation for project name, description, status, and date bounds (`due_date >= start_date`).
-- **View Projects:** Server-side paginated grid/list with real-time task counts, member counts, and status badges.
-- **Project Details View:** Workspace view displaying owner metadata, schedule dates, and associated project tasks.
-- **Edit Project:** Inline update modal modifying name, description, status, and dates with immediate backend synchronization.
-- **Delete Project:** Deletion with confirmation dialog; enforces owner-only deletion permissions and cascades child tasks.
-- **Status Lifecycle:** `NOT_STARTED`, `IN_PROGRESS`, `COMPLETED`, `PLANNING`, `ON_HOLD`.
+- **Create Project:** Form with field validation for project name, description, status, and date bounds (`due_date >= start_date`).
+- **List & Filter Projects:** Server-side paginated list with real-time task counts, member counts, and status badges.
+- **Project Workspace / Details:** Dedicated view displaying project metadata, schedule bounds, and associated tasks.
+- **Edit Project:** Inline modal modifying name, description, status, and dates with immediate backend synchronization.
+- **Delete Project:** Confirmation dialog enforcing owner permissions with cascade task deletion.
+- **Status Lifecycle:** `NOT_STARTED`, `IN_PROGRESS`, `COMPLETED`.
 
 ### ✅ Task Management (Full CRUD)
 - **Create Task:** Assign tasks to projects with title, description, priority, assignee, due date, and estimated hours.
-- **View Tasks:** Filterable list displaying priority badges, status indicators, assignee details, and project affiliations.
-- **Inline Completion Toggle:** Toggle task status to `DONE` directly from the task list on Web and Mobile, which updates the `completed_at` timestamp.
-- **Edit & Delete Tasks:** Modify title, status, priority, and metadata; delete with permission guards.
-- **Priority Levels:** `LOW`, `MEDIUM`, `HIGH`, `URGENT`.
-- **Task Statuses:** `TODO`, `IN_PROGRESS`, `IN_REVIEW`, `DONE`, `BLOCKED`, `PENDING`.
+- **List & Filter Tasks:** Filter by project, status (`TODO`, `IN_PROGRESS`, `DONE`), priority (`LOW`, `MEDIUM`, `HIGH`, `URGENT`), and search terms.
+- **Inline Status Toggle:** One-click task completion toggle updating the task status to `DONE` and recording `completed_at`.
+- **Edit & Delete Tasks:** Comprehensive task modification and deletion with creator / project-owner permission checks.
 
-### 📊 Real-Time Dashboard Metrics
-All metrics are computed server-side via SQL Common Table Expressions (CTE) scoped to the authenticated user:
+### 📊 Real-Time Dynamic Dashboard Analytics
+Computed server-side with user-scoped SQL queries:
 - **Total Projects:** Count of user-owned and accessible member projects.
 - **Total Tasks:** Count of tasks within accessible projects.
-- **Completed Tasks:** Count of tasks marked `COMPLETED` or `DONE`.
+- **Completed Tasks:** Count of tasks marked `DONE` or `COMPLETED`.
 - **Pending Tasks:** Count of active, non-completed tasks.
 - **Projects In Progress:** Count of projects currently in `IN_PROGRESS` status.
-
-### 🔍 Search, Filtering & Server-Side Sorting
-- **Substring Search:** Server-side `ILIKE` substring search across project names, descriptions, task titles, and task descriptions.
-- **Status & Priority Filters:** Server-side query parameter filtering (`?status=...`, `?priority=...`).
-- **Multi-Field Sorting:** Server-side sorting (`?sortBy=created_at&order=DESC`, `name`, `due_date`, `priority`, `status`).
-- **Pagination:** Structured metadata (`page`, `limit`, `total`, `totalPages`, `hasNextPage`, `hasPreviousPage`).
+- **Task Status Distribution:** Conic gradient chart displaying task status breakdown.
+- **Project Progress Tracker:** Real-time completion percentages based on closed child tasks.
 
 ---
 
-## 4. Repository Structure
+## 5. Repository Directory Structure
 
-```
+```text
 Project_management/
-├── backend/                  # Node.js + Express REST API
+├── backend/                      # Node.js + Express REST API
 │   ├── src/
-│   │   ├── config/          # Database pool & Swagger OpenAPI definition
-│   │   ├── controllers/     # Route request/response handlers
-│   │   ├── middleware/      # JWT auth, error handler, rate limiter
-│   │   ├── routes/          # REST route declarations
-│   │   ├── services/        # Business logic & parameterized SQL queries
-│   │   └── utils/           # Password hashing, JWT utils, validators
-│   ├── .env.example
+│   │   ├── config/              # PostgreSQL connection pool (Neon SSL) & Swagger OpenAPI
+│   │   ├── controllers/         # Request handlers (auth, projects, tasks, dashboard)
+│   │   ├── middleware/          # JWT verification, error handler, rate limiter
+│   │   ├── routes/              # Express REST routes (/api/auth, /api/projects, /api/tasks, etc.)
+│   │   ├── services/            # Database queries with parameterized SQL
+│   │   └── utils/               # Bcrypt hashing, JWT helpers, validators
+│   ├── tests/                   # 54 automated native node:test suites
+│   ├── .env.example             # Backend environment template (DATABASE_URL / DB_*)
 │   ├── package.json
 │   └── README.md
 │
-├── frontend/                 # React 19 + Vite Web Application
+├── frontend/                     # React 19 + TanStack / Vite Web App
 │   ├── src/
-│   │   ├── components/      # UI component library, modals, tables, forms
-│   │   ├── routes/          # TanStack file-based routes (_authenticated)
-│   │   ├── services/        # API client and service endpoints
-│   │   ├── types/           # TypeScript data interfaces
-│   │   └── lib/             # Design tokens and formatters
-│   ├── .env.example
+│   │   ├── components/          # Reusable UI components, dialogs, task lists, forms
+│   │   ├── routes/              # TanStack file-based routes (_authenticated.dashboard, etc.)
+│   │   ├── services/            # API client and endpoints
+│   │   ├── types/               # TypeScript data interfaces (DashboardStats, Project, Task)
+│   │   └── lib/                 # Constants, formatters, utilities
+│   ├── src/test/                # Vitest test suites (Dashboard mapping, routing, formatters)
+│   ├── .env.example             # Frontend environment template (VITE_API_BASE_URL)
 │   ├── package.json
 │   └── README.md
 │
-├── mobile/                   # React Native + Expo Mobile Application
+├── mobile/                       # React Native + Expo Mobile Application
 │   ├── src/
-│   │   ├── components/      # Reusable Native UI components (Card, Badge, Input, Button)
-│   │   ├── constants/       # Color palette, spacing, typography, config
-│   │   ├── context/         # AuthContext state management
-│   │   ├── navigation/      # NativeStack & BottomTab navigators
-│   │   ├── screens/         # Auth, Dashboard, Projects, Tasks, Profile screens
-│   │   ├── services/api/    # Centralized API client & endpoint services
-│   │   ├── types/           # TypeScript API & entity models
-│   │   └── utils/           # SecureStore, validation, formatters
-│   ├── .env.example
+│   │   ├── components/          # Mobile UI components (Card, Badge, Button, Input)
+│   │   ├── constants/           # Spacing, typography, palette, API configuration
+│   │   ├── context/             # AuthContext (SecureStore token handling)
+│   │   ├── navigation/          # NativeStack & BottomTab navigators
+│   │   ├── screens/             # Auth, Dashboard, Projects, Tasks, Profile screens
+│   │   ├── services/api/        # Centralized ApiClient & endpoint modules
+│   │   ├── types/               # TypeScript API & entity interfaces
+│   │   └── utils/               # Validation, SecureStore wrapper, formatters
+│   ├── .env.example             # Mobile environment template (EXPO_PUBLIC_API_URL)
 │   ├── app.json
 │   ├── package.json
 │   └── README.md
 │
-├── database/                 # PostgreSQL Database Resources
-│   ├── schema.sql           # Complete DDL: extensions, enums, tables, FKs, constraints
-│   ├── seed.sql             # Development seed data with pre-hashed credentials
-│   ├── queries.sql          # Canonical SQL query reference
-│   ├── ER_DIAGRAM.md        # Entity Relationship documentation
+├── database/                     # PostgreSQL Schema & Seed Files
+│   ├── schema.sql               # Full DDL: tables, constraints, enums, indexes, triggers
+│   ├── seed.sql                 # Sample test data with bcrypt-hashed credentials
+│   ├── queries.sql              # Canonical parameterized SQL query reference
+│   ├── ER_DIAGRAM.md            # Entity-Relationship diagram & schema documentation
 │   └── README.md
 │
-├── docs/                     # Project Documentation
-│   ├── API.md                # Comprehensive REST API Specification
-│   ├── FINAL_TEST_REPORT.md  # 105-Point Quality Assurance Test Report
-│   └── FINAL_RELEASE_CHECKLIST.md # Full Assignment Compliance Matrix
+├── docs/                         # Comprehensive Technical Documentation
+│   ├── API.md                   # Full REST API specification & OpenAPI guide
+│   ├── FINAL_TEST_REPORT.md     # 105-Point Quality Assurance verification report
+│   └── FINAL_RELEASE_CHECKLIST.md # Full assignment compliance verification matrix
 │
-├── scripts/                  # Automated E2E & Security Verification Suites
-│   ├── test_phase19_e2e.js       # Master 27-point full-stack E2E integration test
-│   ├── test_project_crud_e2e.js  # 19-point bidirectional project CRUD test
+├── scripts/                      # Automated E2E & Cross-Platform Integration Suites
+│   ├── test_phase19_e2e.js      # 27-Point E2E full-stack lifecycle test
+│   ├── test_project_crud_e2e.js # 19-Point bidirectional project CRUD test
 │   ├── test_stage3_cross_platform_acceptance.js # Web <-> Mobile live sync acceptance
-│   └── test_security_isolation_acceptance.js   # 21-point multi-tenant BOLA security test
-├── .env.example              # Consolidated Environment Configuration Template
-├── .gitignore                # Repository Git Ignore Rules
-└── README.md                 # Master Project Overview & Setup Guide
+│   └── test_security_isolation_acceptance.js   # 21-Point multi-tenant BOLA security test
+│
+├── .env.example                  # Consolidated root environment configuration template
+├── .gitignore                    # Comprehensive multi-project Git ignore rules
+└── README.md                     # Master project documentation
 ```
-
----
-
-## 5. REST API Specification
-
-Interactive Swagger OpenAPI 3.0 documentation is available at **`http://localhost:5001/api/docs`**.
-
-| Endpoint | Method | Authentication | Description |
-|:---|:---:|:---:|:---|
-| `/api/health` | `GET` | Public | Service health check |
-| `/api/docs` | `GET` | Public | Interactive Swagger API documentation |
-| `/api/auth/register` | `POST` | Public | Register new user account (`full_name`, `email`, `password`) |
-| `/api/auth/login` | `POST` | Public | Authenticate credentials and receive signed JWT |
-| `/api/auth/logout` | `POST` | Bearer JWT | Stateless client token discard confirmation |
-| `/api/auth/me` | `GET` | Bearer JWT | Fetch current authenticated user profile |
-| `/api/projects` | `GET` | Bearer JWT | List accessible projects with pagination, sorting & search |
-| `/api/projects/:id` | `GET` | Bearer JWT | Get project details, task count & member count |
-| `/api/projects` | `POST` | Bearer JWT | Create project workspace (`name`, `description`, `status`, `dates`) |
-| `/api/projects/:id` | `PUT` | Bearer JWT | Update project details (Owner / Admin only) |
-| `/api/projects/:id` | `DELETE` | Bearer JWT | Delete project workspace & cascade child tasks (Owner only) |
-| `/api/tasks` | `GET` | Bearer JWT | List tasks with filters (`search`, `status`, `priority`, `project_id`) |
-| `/api/tasks/:id` | `GET` | Bearer JWT | Get task details by UUID |
-| `/api/tasks` | `POST` | Bearer JWT | Create task under project |
-| `/api/tasks/:id` | `PUT` | Bearer JWT | Update task fields, status, priority, assignee |
-| `/api/tasks/:id` | `DELETE` | Bearer JWT | Delete task (Creator / Project Owner only) |
-| `/api/dashboard` | `GET` | Bearer JWT | Get aggregated user-scoped project and task statistics |
 
 ---
 
@@ -208,112 +191,158 @@ Interactive Swagger OpenAPI 3.0 documentation is available at **`http://localhos
 ### Prerequisites
 - **Node.js:** v20.x or higher
 - **PostgreSQL:** v14.x or higher
-- **Package Manager:** `npm` (included with Node.js)
-- **Mobile Target (Optional):** Android Studio / Emulator OR physical device with **Expo Go**
+- **Package Manager:** `npm`
+- **Mobile Development (Optional):** Android Studio (Emulator) or physical device with **Expo Go**
 
 ---
 
-### Step 1: Initialize the PostgreSQL Database
+### Step 1: Clone & Configure Environment Files
 
 ```bash
-# Ensure PostgreSQL is running
-# macOS: brew services start postgresql@14 (or default postgres service)
+git clone https://github.com/hrbbhagat/Project_management.git
+cd Project_management
 
+# Create environment configuration files from templates
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env
+cp mobile/.env.example mobile/.env
+```
+
+---
+
+### Step 2: Initialize the PostgreSQL Database
+
+```bash
+# Ensure local PostgreSQL is running
 # Create database and apply schema
 createdb project_management || true
 psql "postgresql://postgres:postgres@localhost:5432/project_management" -f database/schema.sql
 
-# (Optional) Load seed demonstration data
+# Load development seed data
 psql "postgresql://postgres:postgres@localhost:5432/project_management" -f database/seed.sql
 ```
 
 ---
 
-### Step 2: Start the Express Backend API
+### Step 3: Run the Backend REST API
 
 Open **Terminal 1**:
-
 ```bash
 cd backend
 npm install
 npm run dev
 ```
-
-- **API Base:** `http://localhost:5001/api`
-- **Health Check:** `http://localhost:5001/api/health`
-- **Swagger Documentation:** `http://localhost:5001/api/docs`
+- **API URL:** `http://localhost:5001/api`
+- **Health Probe:** `http://localhost:5001/api/health`
+- **Interactive Swagger Docs:** `http://localhost:5001/api/docs`
 
 ---
 
-### Step 3: Start the React Web Frontend
+### Step 4: Run the React Web Frontend
 
 Open **Terminal 2**:
-
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
-
-- **Web Application URL:** `http://localhost:8080`
+- **Web App URL:** `http://localhost:8080`
 
 ---
 
-### Step 4: Start the Expo Mobile Application
+### Step 5: Run the Expo Mobile Application
 
 Open **Terminal 3**:
-
 ```bash
 cd mobile
 npm install
 npx expo start
 ```
-
-#### Launching the Mobile App:
-- **Android Emulator:** Press `a` in the terminal. *(The app automatically routes to `http://10.0.2.2:5001/api` for the Android emulator).*
-- **Physical Device:** Install **Expo Go** from Google Play Store or Apple App Store. Set your computer's local Wi-Fi IP in `mobile/.env` (`EXPO_PUBLIC_API_URL=http://192.168.1.X:5001/api`) and scan the terminal QR code.
+- **Android Emulator:** Press `a` in the terminal. *(Automatically routes to `http://10.0.2.2:5001/api`).*
+- **Physical Device:** Install **Expo Go** (Android / iOS). Set your machine's Wi-Fi IP in `mobile/.env` (`EXPO_PUBLIC_API_URL=http://192.168.1.X:5001/api`) and scan the QR code.
 - **Web Preview:** Press `w` in the terminal.
 
 ---
 
 ## 7. Default Test Accounts
 
-| Account Role | Email | Password | Pre-populated Data |
+| User Role | Email | Password | Pre-populated Dataset |
 |:---|:---|:---|:---|
-| **Primary User (Alpha)** | `testuser1@example.com` | `Password123!` | 1 Project, 16 Tasks |
-| **Secondary User (Beta)** | `testuser2@example.com` | `Password123!` | 1 Project, 8 Tasks |
+| **Admin / Primary User** | `alice.johnson@example.com` | `Password123!` | 1 Project, 4 Tasks |
+| **Member User** | `bob.smith@example.com` | `Password123!` | 1 Project, 4 Tasks |
+| **Member User** | `charlie.davis@example.com` | `Password123!` | 1 Project, 2 Tasks |
 
-*(You can also register a new account from either the Web or Mobile application).*
+*(You can also register a new account on Web or Mobile at any time).*
 
 ---
 
-## 8. Automated E2E Testing & Verification
+## 8. REST API Endpoint Reference
 
-The repository includes automated end-to-end integration test runners that validate real HTTP traffic, PostgreSQL persistence, and cross-platform synchronization:
+| Method | Endpoint | Access | Description |
+|:---:|:---|:---:|:---|
+| `GET` | `/api/health` | Public | Service health status |
+| `GET` | `/api/docs` | Public | Interactive Swagger API documentation |
+| `POST` | `/api/auth/register` | Public | Register new user account |
+| `POST` | `/api/auth/login` | Public | Authenticate user & return JWT |
+| `POST` | `/api/auth/logout` | Bearer JWT | Stateless client logout confirmation |
+| `GET` | `/api/auth/me` | Bearer JWT | Fetch authenticated user profile |
+| `GET` | `/api/projects` | Bearer JWT | List projects with search, filter, and pagination |
+| `GET` | `/api/projects/:id` | Bearer JWT | Get project details, task count, and members |
+| `POST` | `/api/projects` | Bearer JWT | Create new project |
+| `PUT` | `/api/projects/:id` | Bearer JWT | Update project details (Owner / Admin) |
+| `DELETE` | `/api/projects/:id` | Bearer JWT | Delete project & cascade tasks (Owner only) |
+| `GET` | `/api/tasks` | Bearer JWT | List tasks with filters (`project_id`, `status`, `priority`) |
+| `GET` | `/api/tasks/:id` | Bearer JWT | Get task details by ID |
+| `POST` | `/api/tasks` | Bearer JWT | Create task under project |
+| `PUT` | `/api/tasks/:id` | Bearer JWT | Update task fields, status, or assignee |
+| `DELETE` | `/api/tasks/:id` | Bearer JWT | Delete task (Creator / Project Owner) |
+| `GET` | `/api/dashboard` | Bearer JWT | Get aggregated user-scoped project & task metrics |
 
+---
+
+## 9. Automated Testing & Verification
+
+### Backend Automated Test Suite
 ```bash
-# Run Master 27-Point E2E Integration Suite (Auth, Token Expiry, Isolation, CRUD, Network Failures)
+cd backend
+npm test
+# Executes 54 native node:test suites (Auth, Projects, Tasks, Dashboard, Multi-tenant Security)
+# Result: 54/54 PASS (100%)
+```
+
+### Frontend Type-Checking & Vitest Suite
+```bash
+cd frontend
+npx tsc --noEmit   # TypeScript Type Check (0 errors)
+npm test           # Vitest unit & integration tests (9/9 PASS)
+npm run build      # Production Nitro + Vite SSR build (0 errors)
+```
+
+### Mobile TypeScript Validation
+```bash
+cd mobile
+npx tsc --noEmit   # Strict TypeScript verification (0 errors)
+```
+
+### End-to-End & Security Acceptance Suites
+```bash
+# Run Master 27-Point E2E Integration Suite
 node scripts/test_phase19_e2e.js
 
-# Run Cross-Platform Project CRUD Integration Suite (19 Tests)
-node scripts/test_project_crud_e2e.js
-```
+# Run 21-Point Multi-Tenant Security & BOLA Isolation Suite
+node scripts/test_security_isolation_acceptance.js
 
-### Static Type Checking & Production Builds
-```bash
-# Mobile TypeScript Compilation (0 errors)
-cd mobile && npx tsc --noEmit
-
-# Frontend Production Build (Nitro/Vite SSR)
-cd frontend && npm run build
+# Run Web <-> Mobile Live Cross-Platform Acceptance Suite
+node scripts/test_stage3_cross_platform_acceptance.js
 ```
 
 ---
 
-## 9. Security & Data Protection
+## 10. Security & Compliance Highlights
 
-- **Password Encryption:** Passwords are encrypted with bcrypt before being written to PostgreSQL.
-- **SQL Injection Prevention:** 100% of database queries use parameterized `$n` placeholders.
-- **Broken Object Level Authorization (BOLA):** Direct object reference attacks are blocked; users cannot query or mutate projects belonging to another tenant.
-- **Rate Limiting:** Authentication routes are rate-limited to prevent brute-force credential stuffing.
-- **Secure Token Handling:** JWTs are stored in hardware-backed device keystores, never exposed in URLs or logged to standard output.
+- **Password Hashing:** Passwords hashed with bcrypt (salt rounds = 10); plaintext passwords are never stored or logged.
+- **SQL Injection Defense:** All database queries utilize parameterized `$1, $2, ...` placeholders.
+- **BOLA Protection:** Multi-tenant access control ensures users cannot read, edit, or delete projects/tasks owned by another tenant.
+- **Brute-Force Rate Limiting:** Authentication routes are protected by rate limiters (100 requests per 15-minute window).
+- **Secure Token Storage:** Mobile app uses hardware-backed Keystore/Keychain via `expo-secure-store` to prevent token extraction.
+- **Environment Isolation:** Zero credentials, passwords, JWT secrets, or database connection strings are hardcoded in source code or committed to Git.
